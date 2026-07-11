@@ -28,11 +28,13 @@ def test():
 
 @app.get("/health")
 def health():
-    try:
-        redis_client.ping()
-        redis_ok = True
-    except Exception:
-        redis_ok = False
+    redis_ok = False
+    if redis_client is not None:
+        try:
+            redis_client.ping()
+            redis_ok = True
+        except Exception:
+            redis_ok = False
     return {
         "status": "ok" if redis_ok else "degraded",
         "redis": redis_ok,
@@ -42,6 +44,8 @@ def health():
 
 @app.get("/debug/redis-ping")
 def redis_ping():
+    if redis_client is None:
+        return {"ping": False, "error": "Redis not configured"}
     return {"ping": redis_client.ping()}
 
 @app.get("/debug/redis-bucket/{client_id}")
@@ -63,6 +67,8 @@ def get_redis_bucket(client_id: str):
 @app.get("/debug/me")
 def get_my_bucket(request: Request):
     client_id = get_client_id(request)
+    if redis_client is None:
+        return {"client_id": client_id, "bucket": {}, "ttl": -2}
     key = f"rate_limiter:{client_id}"
     return {
         "client_id": client_id,

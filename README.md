@@ -201,6 +201,8 @@ Use **Upstash Redis** for the database and **Render** for the FastAPI service.
 | Key | Example |
 |-----|---------|
 | `REDIS_URL` | `rediss://default:password@host:6379` |
+
+**Important:** Use the **`rediss://`** connection URL from Upstash — **not** the `https://...` REST URL and **not** `UPSTASH_REDIS_REST_TOKEN`.
 | `RATE_LIMIT_CAPACITY` | `10` |
 | `RATE_LIMIT_REFILL_RATE` | `1` |
 
