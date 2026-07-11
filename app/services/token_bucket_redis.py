@@ -68,54 +68,7 @@ def allow_request_redis(client_id: str, capacity: int, refill_rate: float) -> tu
         capacity,
         refill_rate,
         now,
-        ttl
+        ttl,
     )
-    print(f"Client: {client_id}, Allowed: {allowed}, Tokens left: {tokens}")
-    return bool(allowed), tokens
-
-# concurrency-unsafe (causes race conditions) implementation of a token bucket rate limiter using Redis to store the bucket state.
-# import time #to get current timestamp
-# from app.core.redis import redis_client #your Redis connection (used to store bucket data)
-
-# def allow_request_redis(client_id: str, capacity: int, refill_rate: float) -> bool:
-#     key = f"rate_limiter:{client_id}" #Unique Redis key per user
-#     now = time.time() #current timestamp in seconds
-
-#     bucket = redis_client.hgetall(key) #Get bucket data (all fields) from Redis (returns dict or empty if not exists) 
-#     if not bucket:
-#         redis_client.hset(key, mapping={
-#             "tokens": capacity - 1, 
-#             "last_refill_ts": now,
-#             "capacity": capacity,
-#             "refill_rate": refill_rate
-#         })
-#         redis_client.expire(key, 600)
-# #The values of capacity and refill_rate are whatever you pass as arguments to the allow_request_redis function for that user/request. 
-#         return True #First request, create bucket with capacity-1 tokens and return True
-
-#     tokens = float(bucket["tokens"])
-#     last_refill_ts = float(bucket["last_refill_ts"])
-#     stored_capacity = float(bucket["capacity"])
-#     stored_refill_rate = float(bucket["refill_rate"])
-
-#     elapsed = now - last_refill_ts
-#     refill = elapsed * stored_refill_rate
-#     tokens = min(stored_capacity, tokens + refill)
-
-#     if tokens < 1:
-#         redis_client.hset(key, mapping={
-#             "tokens": tokens,
-#             "last_refill_ts": now
-#         })
-#         redis_client.expire(key, 600)
-#         return False
-
-#     tokens -= 1
-
-#     redis_client.hset(key, mapping={
-#         "tokens": tokens,
-#         "last_refill_ts": now
-#     })
-#     redis_client.expire(key, 600)
-
-#     return True
+    # Redis may return Lua numbers as strings when decode_responses=True.
+    return int(allowed) == 1, float(tokens)

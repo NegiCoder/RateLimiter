@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RateLimiter Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">FastAPI + Redis Token Bucket</p>
+        <h1>RateLimiter Control Dashboard</h1>
+        <p class="hero__copy">
+          Test a real Redis-backed rate limiter, watch tokens refill, and see
+          how the API responds when the bucket is empty.
+        </p>
+      </div>
+      <div class="hero__actions">
+        <a class="btn btn--ghost" href="/docs" target="_blank" rel="noreferrer">Open API Docs</a>
+        <a class="btn btn--ghost" href="https://github.com/PrakritiNegii/RateLimiter" target="_blank" rel="noreferrer">GitHub</a>
+      </div>
+    </section>
+
+    <section class="status-grid" aria-label="System status">
+      <article class="stat-card">
+        <span class="stat-card__label">Redis</span>
+        <strong id="redis-status">Checking...</strong>
+      </article>
+      <article class="stat-card">
+        <span class="stat-card__label">Capacity</span>
+        <strong id="capacity">-</strong>
+      </article>
+      <article class="stat-card">
+        <span class="stat-card__label">Refill rate</span>
+        <strong><span id="refill-rate">-</span>/sec</strong>
+      </article>
+      <article class="stat-card">
+        <span class="stat-card__label">Tokens left</span>
+        <strong id="tokens-left">-</strong>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <div class="card__header">
+          <div>
+            <h2>Send Requests</h2>
+            <p>Only calls to <code>/test</code> are rate limited.</p>
+          </div>
+          <span class="pill" id="client-id">Client: -</span>
+        </div>
+
+        <div class="button-row">
+          <button class="btn btn--primary" id="single-request">Send 1 Request</button>
+          <button class="btn btn--secondary" id="burst-request">Run 12-Request Burst</button>
+          <button class="btn btn--danger" id="reset-bucket">Reset Bucket</button>
+        </div>
+
+        <div class="meter" aria-label="Token bucket meter">
+          <div class="meter__track">
+            <div class="meter__fill" id="token-meter"></div>
+          </div>
+          <p id="bucket-meta">Bucket state will appear here.</p>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card__header">
+          <div>
+            <h2>How Token Bucket Works</h2>
+            <p>Simple, interview-friendly explanation.</p>
+          </div>
+        </div>
+        <ol class="steps">
+          <li>Each client gets a bucket with a fixed capacity.</li>
+          <li>Every allowed request consumes one token.</li>
+          <li>Tokens refill over time at a configured rate.</li>
+          <li>If no token is available, the API returns <code>429</code>.</li>
+          <li>Redis + Lua makes the check atomic under concurrency.</li>
+        </ol>
+      </article>
+    </section>
+
+    <section class="card">
+      <div class="card__header">
+        <div>
+          <h2>Request Log</h2>
+          <p>Successful requests are green; rejected requests are red.</p>
+        </div>
+        <button class="btn btn--ghost" id="clear-log">Clear Log</button>
+      </div>
+      <div class="log" id="request-log" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <template id="log-row-template">
+    <div class="log-row">
+      <span class="log-row__status"></span>
+      <span class="log-row__message"></span>
+      <span class="log-row__time"></span>
+    </div>
+  </template>
+
+  <script src="/assets/js/app.js" defer></script>
+</body>
+</html>

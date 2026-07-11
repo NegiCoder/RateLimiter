@@ -1,4 +1,10 @@
 from fastapi import Request
 
+
 def get_client_id(request: Request) -> str:
-    return request.client.host   # IP-based for now
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+    if request.client:
+        return request.client.host
+    return "unknown"

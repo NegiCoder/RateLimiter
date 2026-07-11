@@ -1,8 +1,5 @@
 import redis
 
-redis_client = redis.Redis(
-    host="localhost",
-    port=6379,
-    db=0,
-    decode_responses=True
-)
+from app.core.config import REDIS_URL
+
+redis_client = redis.from_url(REDIS_URL, decode_responses=True)
