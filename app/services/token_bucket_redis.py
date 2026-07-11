@@ -57,6 +57,9 @@ return {allowed,tokens}
 """
 
 def allow_request_redis(client_id: str, capacity: int, refill_rate: float) -> tuple[bool, float]:
+    if redis_client is None:
+        raise RuntimeError("Redis client not configured")
+
     key = f"rate_limiter:{client_id}"
     now = time.time()
     ttl = 600

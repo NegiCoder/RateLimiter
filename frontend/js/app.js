@@ -69,13 +69,21 @@ async function refreshBucket() {
 async function sendTestRequest({ manageBusy = true } = {}) {
   if (manageBusy) setBusy(true);
   try {
-    const res = await fetch("/test");
+    const res = await fetch("/test", { cache: "no-store" });
     const limit = res.headers.get("X-RateLimit-Limit") || state.capacity;
     const remaining = res.headers.get("X-RateLimit-Remaining") ?? "-";
     const body = await res.json().catch(() => ({}));
-    const message = res.ok
-      ? `Allowed by middleware. Remaining: ${remaining}/${limit}`
-      : `${body.detail || "Rate limit exceeded"}. Remaining: ${remaining}/${limit}`;
+
+    let message;
+    if (res.status === 429) {
+      message = `Rate limit exceeded. Remaining: ${remaining}/${limit}`;
+    } else if (res.ok) {
+      message = `Allowed by middleware. Remaining: ${remaining}/${limit}`;
+    } else if (res.status === 404) {
+      message = "Endpoint not found (server may be waking up — try again).";
+    } else {
+      message = body.detail || `Request failed (${res.status}).`;
+    }
 
     addLog(res.status, message);
     await refreshBucket();

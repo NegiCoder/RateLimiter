@@ -36,9 +36,11 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
             )
             response.headers["X-RateLimit-Limit"] = str(RATE_LIMIT_CAPACITY)
             response.headers["X-RateLimit-Remaining"] = str(max(0, int(tokens)))
+            response.headers["Cache-Control"] = "no-store"
             return response
 
         response = await call_next(request)
         response.headers["X-RateLimit-Limit"] = str(RATE_LIMIT_CAPACITY)
         response.headers["X-RateLimit-Remaining"] = str(max(0, int(tokens)))
+        response.headers["Cache-Control"] = "no-store"
         return response
