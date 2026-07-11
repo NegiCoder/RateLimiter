@@ -92,28 +92,34 @@ async function sendTestRequest({ manageBusy = true } = {}) {
   }
 }
 
+const BURST_SIZE = 20;
+
 async function runBurst() {
   setBusy(true);
   try {
-    // Fire all requests concurrently so they outpace the 1 token/sec refill.
-    // Sequential requests with network latency let the bucket refill between
-    // hits, so it would never reach 429.
-    const requests = Array.from({ length: 12 }, (_, i) =>
-      fetch(`/test?burst=${Date.now()}-${i}`, { cache: "no-store" }).then(async (res) => {
-        const remaining = res.headers.get("X-RateLimit-Remaining") ?? "-";
-        const limit = res.headers.get("X-RateLimit-Limit") || state.capacity;
-        return { status: res.status, remaining, limit };
-      })
+    // Fire all requests concurrently so they outpace the token refill.
+    // Sending well above capacity guarantees some 429 rejections even with
+    // a little refill happening during the burst window.
+    const requests = Array.from({ length: BURST_SIZE }, (_, i) =>
+      fetch(`/test?burst=${Date.now()}-${i}`, { cache: "no-store" })
+        .then(async (res) => ({
+          status: res.status,
+          remaining: res.headers.get("X-RateLimit-Remaining") ?? "-",
+          limit: res.headers.get("X-RateLimit-Limit") || state.capacity,
+        }))
+        .catch(() => ({ status: 0, remaining: "-", limit: state.capacity }))
     );
 
     const results = await Promise.all(requests);
+    // Show allowed first (counting down), then the rejections, for a clear demo.
+    results.sort((a, b) => a.status - b.status);
     results.forEach(({ status, remaining, limit }) => {
       const message = status === 429
-        ? `Rate limit exceeded. Remaining: ${remaining}/${limit}`
+        ? `Rate limit exceeded (429). Remaining: ${remaining}/${limit}`
         : status === 200
           ? `Allowed by middleware. Remaining: ${remaining}/${limit}`
-          : `Request failed (${status}).`;
-      addLog(status, message);
+          : `Request failed (${status || "network error"}).`;
+      addLog(status || 503, message);
     });
 
     await refreshBucket();
