@@ -111,8 +111,12 @@ async function runBurst() {
     );
 
     const results = await Promise.all(requests);
-    // Show allowed first (counting down), then the rejections, for a clear demo.
-    results.sort((a, b) => a.status - b.status);
+    // ponytail: display-only ordering. Concurrent responses finish out of order,
+    // so we sort allowed-first, then by remaining descending, to read as a clean
+    // countdown (9,8,7,...,0) followed by the 429 rejections.
+    results.sort((a, b) =>
+      a.status - b.status || Number(b.remaining) - Number(a.remaining)
+    );
     results.forEach(({ status, remaining, limit }) => {
       const message = status === 429
         ? `Rate limit exceeded (429). Remaining: ${remaining}/${limit}`

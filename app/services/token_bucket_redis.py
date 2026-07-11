@@ -32,7 +32,13 @@ else
     stored_capacity = tonumber(data["capacity"])
     stored_refill_rate = tonumber(data["refill_rate"])
 
+    -- Clamp elapsed to >= 0: under a concurrent burst, requests can reach
+    -- Redis out of the order their Python `now` was stamped, which would
+    -- otherwise make elapsed negative and wrongly drain tokens.
     local elapsed = now - last_refill_ts
+    if elapsed < 0 then
+        elapsed = 0
+    end
     local refill = elapsed * stored_refill_rate
     tokens = math.min(stored_capacity, tokens + refill)
 end
@@ -53,7 +59,8 @@ redis.call("HSET", key,
 
 redis.call("EXPIRE", key, ttl)
 
-return {allowed,tokens}
+-- tostring keeps the fraction: Redis truncates Lua numbers to ints in replies.
+return {allowed, tostring(tokens)}
 """
 
 def allow_request_redis(client_id: str, capacity: int, refill_rate: float) -> tuple[bool, float]:
@@ -62,6 +69,8 @@ def allow_request_redis(client_id: str, capacity: int, refill_rate: float) -> tu
 
     key = f"rate_limiter:{client_id}"
     now = time.time()
+    # ponytail: fixed 600s idle TTL. Fine for a demo; a heavily used key just
+    # keeps getting re-set, so the bucket only expires after real inactivity.
     ttl = 600
 
     allowed, tokens = redis_client.eval(
