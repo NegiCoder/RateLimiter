@@ -95,10 +95,28 @@ async function sendTestRequest({ manageBusy = true } = {}) {
 async function runBurst() {
   setBusy(true);
   try {
-    for (let i = 0; i < 12; i += 1) {
-      await sendTestRequest({ manageBusy: false });
-      await new Promise((resolve) => setTimeout(resolve, 140));
-    }
+    // Fire all requests concurrently so they outpace the 1 token/sec refill.
+    // Sequential requests with network latency let the bucket refill between
+    // hits, so it would never reach 429.
+    const requests = Array.from({ length: 12 }, (_, i) =>
+      fetch(`/test?burst=${Date.now()}-${i}`, { cache: "no-store" }).then(async (res) => {
+        const remaining = res.headers.get("X-RateLimit-Remaining") ?? "-";
+        const limit = res.headers.get("X-RateLimit-Limit") || state.capacity;
+        return { status: res.status, remaining, limit };
+      })
+    );
+
+    const results = await Promise.all(requests);
+    results.forEach(({ status, remaining, limit }) => {
+      const message = status === 429
+        ? `Rate limit exceeded. Remaining: ${remaining}/${limit}`
+        : status === 200
+          ? `Allowed by middleware. Remaining: ${remaining}/${limit}`
+          : `Request failed (${status}).`;
+      addLog(status, message);
+    });
+
+    await refreshBucket();
   } finally {
     setBusy(false);
   }
