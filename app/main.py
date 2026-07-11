@@ -4,7 +4,9 @@ from app.core.database import SessionLocal
 from app.models.rate_limiter import RateLimiter
 from datetime import datetime, timezone
 
-from app.middleware.rate_limiter import RateLimiterMiddleware
+from app.middleware.rate_limiter_redis import RateLimiterMiddleware
+
+from app.core.redis import redis_client
 
 app = FastAPI(title="Rate Limiter Service")
 
@@ -20,37 +22,21 @@ def test():
 def health():
     return {"status": "ok"}
 
-@app.post("/debug/create_bucket")
-def create_bucket():
-    db = SessionLocal()
-    bucket = RateLimiter(
-       client_id="test_client",
-       capacity=10,
-       tokens=10,
-       refill_rate=1,
-       last_refill_ts=datetime.now(timezone.utc)
-    )
-    db.merge(bucket)
-    db.commit()
-    db.close()
-    return {"status": "created"}
+@app.get("/debug/redis-ping")
+def redis_ping():
+    return {"ping": redis_client.ping()}
 
-@app.get("/debug/bucket/{client_id}")
-def get_bucket(client_id: str):
-    db = SessionLocal()
-    try:
-        bucket = db.query(RateLimiter).filter(RateLimiter.client_id == client_id).first()
+@app.get("/debug/redis-bucket/{client_id}")
+def get_redis_bucket(client_id: str):
+    key = f"rate_limiter:{client_id}"
+    bucket = redis_client.hgetall(key)
+    ttl = redis_client.ttl(key)
 
-        if not bucket:
-            return {"message": "Bucket not found"}
+    if not bucket:
+        return {"message": "Bucket not found"}
 
-        return {
-            "client_id": bucket.client_id,
-            "capacity": bucket.capacity,
-            "tokens": bucket.tokens,
-            "refill_rate": bucket.refill_rate,
-            "last_refill_ts": bucket.last_refill_ts,
-            "updated_at": bucket.updated_at
-        }
-    finally:
-        db.close()
+    return {
+        "client_id": client_id,
+        "bucket": bucket,
+        "ttl": ttl
+    }
